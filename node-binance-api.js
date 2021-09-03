@@ -3449,7 +3449,7 @@ let api = function Binance( options = {} ) {
         * @return {promise or undefined} - omitting the callback returns a promise
         */
         withdrawHistory: function ( callback, params = {} ) {
-            if ( typeof params === 'string' ) params = { asset: params };
+            if ( typeof params === 'string' ) params = { coin: params };
             if ( !callback ) {
                 return new Promise( ( resolve, reject ) => {
                     callback = ( error, response ) => {
@@ -3473,7 +3473,7 @@ let api = function Binance( options = {} ) {
         * @return {promise or undefined} - omitting the callback returns a promise
         */
         depositHistory: function ( callback, params = {} ) {
-            if ( typeof params === 'string' ) params = { asset: params }; // Support 'asset' (string) or optional parameters (object)
+            if ( typeof params === 'string' ) params = { coin: params }; // Support 'asset' (string) or optional parameters (object)
             if ( !callback ) {
                 return new Promise( ( resolve, reject ) => {
                     callback = ( error, response ) => {
@@ -3506,10 +3506,10 @@ let api = function Binance( options = {} ) {
                             resolve( response );
                         }
                     }
-                    signedRequest( wapi + 'v3/depositAddress.html', { asset: asset }, callback );
+                    signedRequest( sapi + 'v1/capital/deposit/address', { asset: asset }, callback );
                 } )
             } else {
-                signedRequest( wapi + 'v3/depositAddress.html', { asset: asset }, callback );
+                signedRequest( sapi + 'v1/capital/deposit/address', { asset: asset }, callback );
             }
         },
 
