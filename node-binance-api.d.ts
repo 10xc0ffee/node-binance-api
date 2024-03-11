@@ -1042,6 +1042,9 @@ declare module "node-binance-api" {
         deliveryUserTrades(symbol: _symbol, params?: any): Promise<any>;
         deliveryUserTrades(...args: any): any;
 
+        deliveryFundingRate(symbol: _symbol, params?: any): Promise<any>;
+        deliveryFundingRate(...args: any): any;
+
         deliveryGetDataStream(params?: any): Promise<any>;
         deliveryGetDataStream(...args: any): any;
 
