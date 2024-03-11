@@ -4297,6 +4297,11 @@ let api = function Binance( options = {} ) {
             return promiseRequest( 'v1/commissionRate', params, { base:dapi, type:'SIGNED' } );
         },
 
+        deliveryFundingRate: async ( symbol, params = {} ) => {
+            params.symbol = symbol;
+            return promiseRequest( 'v1/fundingRate', params, { base:dapi } );
+        },
+
         deliveryGetDataStream: async ( params = {} ) => {
             //A User Data Stream listenKey is valid for 60 minutes after creation. setInterval
             return promiseRequest( 'v1/listenKey', params, { base:dapi, type:'SIGNED', method:'POST' } );
