@@ -60,6 +60,7 @@ let api = function Binance( options = {} ) {
 
     const default_options = {
         recvWindow: 5000,
+        streamWaitTimeMS: 5000,
         useServerTime: false,
         reconnect: true,
         keepAlive: true,
@@ -93,6 +94,7 @@ let api = function Binance( options = {} ) {
             Binance.options = JSON.parse( file.readFileSync( opt ) );
         } else Binance.options = opt;
         if ( typeof Binance.options.recvWindow === 'undefined' ) Binance.options.recvWindow = default_options.recvWindow;
+        if ( typeof Binance.options.streamWaitTimeMS === 'undefined' ) Binance.options.streamWaitTimeMS = default_options.streamWaitTimeMS;
         if ( typeof Binance.options.useServerTime === 'undefined' ) Binance.options.useServerTime = default_options.useServerTime;
         if ( typeof Binance.options.reconnect === 'undefined' ) Binance.options.reconnect = default_options.reconnect;
         if ( typeof Binance.options.test === 'undefined' ) Binance.options.test = default_options.test;
@@ -165,6 +167,12 @@ let api = function Binance( options = {} ) {
         if ( Binance.options.proxy ) {
             const proxyauth = Binance.options.proxy.auth ? `${ Binance.options.proxy.auth.username }:${ Binance.options.proxy.auth.password }@` : '';
             opt.proxy = `http://${ proxyauth }${ Binance.options.proxy.host }:${ Binance.options.proxy.port }`;
+        } else if ( Binance.options.socks5Proxy ) {
+            opt.agentClass = Binance.options.socks5Proxy.agentClass
+            opt.agentOptions = {
+                hostname: Binance.options.socks5Proxy.host,
+                port: Binance.options.socks5Proxy.port
+            }
         }
         return opt;
     }
@@ -185,7 +193,11 @@ let api = function Binance( options = {} ) {
         if ( !cb ) return;
         if ( error ) return cb( error, {} );
         if ( response && response.statusCode !== 200 ) return cb( response, {} );
-        return cb( null, JSONbig.parse( body ) );
+        try {
+            return cb( null, JSON.parse( body ) );
+        } catch (e) {
+            return cb( e, {} )
+        }
     }
 
     const proxyRequest = ( opt, cb ) => {
@@ -755,11 +767,18 @@ let api = function Binance( options = {} ) {
         if ( Binance.options.verbose ) {
             Binance.options.log( 'CombinedStream: Subscribed to [' + ws.endpoint + '] ' + queryParams );
         }
-        ws.on( 'open', handleSocketOpen.bind( ws, opened_callback ) );
+        let flag = true
+        let startTime = Date.now()
+        ws.on( 'open', handleSocketOpen.bind( ws, false ) );
         ws.on( 'pong', handleSocketHeartbeat );
         ws.on( 'error', handleSocketError );
         ws.on( 'close', handleSocketClose.bind( ws, reconnect ) );
         ws.on( 'message', data => {
+            if (flag && Date.now() - startTime > Binance.options.streamWaitTimeMS && opened_callback) {
+                console.log("snapshot data loaded ...")
+                opened_callback()
+                flag = false
+            }
             try {
                 callback( JSON.parse( data ).data );
             } catch ( error ) {
@@ -2530,8 +2549,8 @@ let api = function Binance( options = {} ) {
         } else if ( depth.U > context.snapshotUpdateId + 1 ) {
             /* In this case we have a gap between the data of the stream and the snapshot.
              This is an out of sync error, and the connection must be torn down and reconnected. */
-            let msg = 'depthHandler: [' + symbol + '] The depth cache is out of sync.';
-            msg += ' Symptom: Gap between snapshot and first stream data.';
+            let msg = `depthHandler: ${symbol} The depth cache is out of sync.`;
+            msg += ` Symptom: Gap between snapshot and first stream data. depth.U: ${depth.U}, context.UpdateId: ${context.snapshotUpdateId}, diff: ${depth.U-context.snapshotUpdateId}`;
             if ( Binance.options.verbose ) Binance.options.log( msg );
             throw new Error( msg );
         } else if ( depth.u < context.snapshotUpdateId + 1 ) {
@@ -3436,7 +3455,7 @@ let api = function Binance( options = {} ) {
         * @return {promise or undefined} - omitting the callback returns a promise
         */
         withdrawHistory: function ( callback, params = {} ) {
-            if ( typeof params === 'string' ) params = { asset: params };
+            if ( typeof params === 'string' ) params = { coin: params };
             if ( !callback ) {
                 return new Promise( ( resolve, reject ) => {
                     callback = ( error, response ) => {
@@ -3460,7 +3479,7 @@ let api = function Binance( options = {} ) {
         * @return {promise or undefined} - omitting the callback returns a promise
         */
         depositHistory: function ( callback, params = {} ) {
-            if ( typeof params === 'string' ) params = { asset: params }; // Support 'asset' (string) or optional parameters (object)
+            if ( typeof params === 'string' ) params = { coin: params }; // Support 'asset' (string) or optional parameters (object)
             if ( !callback ) {
                 return new Promise( ( resolve, reject ) => {
                     callback = ( error, response ) => {
@@ -3493,10 +3512,10 @@ let api = function Binance( options = {} ) {
                             resolve( response );
                         }
                     }
-                    signedRequest( wapi + 'v3/depositAddress.html', { asset: asset }, callback );
+                    signedRequest( sapi + 'v1/capital/deposit/address', { asset: asset }, callback );
                 } )
             } else {
-                signedRequest( wapi + 'v3/depositAddress.html', { asset: asset }, callback );
+                signedRequest( sapi + 'v1/capital/deposit/address', { asset: asset }, callback );
             }
         },
 
